@@ -1,0 +1,28 @@
+{
+  "name" : "SolrTestTarget",
+  "solrUrls" : [ "http://solr1:8983/solr", "http://solr2:8983/solr", "http://solr3:8983/solr" ],
+  "zkHosts" : [ "zookeeper1:2181", "zookeeper2:2181", "zookeeper3:2181" ],
+  "zkChroot" : "root",
+  "collection" : "samples",
+  "user" : "user",
+  "password" : "{fdvMkcLxZs5seZBY8X+Opg==}",
+  "autoCommitPolicy" : {
+    "enabled" : true,
+    "commitDocCount" : 10000,
+    "commitIntervalMs" : 20000
+  },
+  "solrCommitOptions" : {
+    "softCommit" : false,
+    "waitForSearcher" : false,
+    "waitForFlush" : false,
+    "commitWithin" : -1
+  },
+  "fieldMappings" : [ {
+    "docField" : "id_s",
+    "solrField" : "id"
+  }, {
+    "docField" : "content_s",
+    "solrField" : "content_tt"
+  } ]
+}
+

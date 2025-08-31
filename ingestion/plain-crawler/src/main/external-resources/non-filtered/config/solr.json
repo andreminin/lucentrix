@@ -1,0 +1,15 @@
+{
+  "name" : "SolrTestTarget",
+  "solrUrls" : [ "http://localhost:8983/solr/dummy" ],
+  "autoCommitPolicy" : {
+    "enabled" : true,
+    "commitDocCount" : 10000,
+    "commitIntervalMs" : 20000
+  },
+  "solrCommitOptions" : {
+    "softCommit" : false,
+    "waitForSearcher" : false,
+    "waitForFlush" : false,
+    "commitWithin" : -1
+  }
+}
