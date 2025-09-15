@@ -16,6 +16,7 @@
 
 	<modules>
 		<module>plain-crawler</module>
+		<module>reactive-crawler</module>
 	</modules>
 
 </project>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Document Indexer</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.1.2/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<div id="app">
+    <!-- Your Vue.js application content -->
+    <div class="container">
+        <h1>PDF Document Indexer</h1>
+
+        <div class="section">
+            <h2>Upload PDF Files</h2>
+            <input type="file" id="fileInput" multiple accept=".pdf" @change="handleFileSelect">
+            <button @click="uploadFiles" :disabled="uploading">Upload Selected Files</button>
+
+            <div v-if="uploading" class="progress-section">
+                <h3>Upload Progress</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div>
+                </div>
+                <p>{{ processed }} / {{ total }} files processed</p>
+                <div v-for="(status, filename) in fileStatus" :key="filename" class="file-status">
+                    {{ filename }}: <span :class="status">{{ status }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Scan Directory</h2>
+            <input type="text" v-model="scanPath" placeholder="./documents">
+            <button @click="scanDirectory">Scan and Index</button>
+        </div>
+
+        <div class="section">
+            <h2>Pull Metadata</h2>
+            <input type="text" v-model="pullPath" placeholder="./documents">
+            <button @click="pullMetadata">Pull Metadata</button>
+
+            <div v-if="documents.length > 0" class="document-list">
+                <h3>Processed Documents</h3>
+                <div v-for="doc in documents" :key="doc.id" class="document-item">
+                    <strong>{{ doc.filename }}</strong> - {{ doc.title }}
+                    <span class="status-badge" :class="'status-' + doc.status">{{ doc.status }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Index Management</h2>
+            <button @click="clearIndex">Clear Index</button>
+            <p>{{ clearStatus }}</p>
+        </div>
+    </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

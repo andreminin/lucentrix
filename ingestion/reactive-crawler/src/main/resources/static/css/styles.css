@@ -1,0 +1,91 @@
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+.section {
+    margin-bottom: 30px;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.progress-bar {
+    height: 20px;
+    background: #f0f0f0;
+    border-radius: 10px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #4caf50;
+    border-radius: 10px;
+    transition: width 0.3s;
+}
+
+.file-status {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.document-list {
+    margin-top: 20px;
+}
+
+.document-item {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.status-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.status-PROCESSING {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-INDEXED {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-FAILED {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+button {
+    padding: 10px 15px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 5px;
+}
+
+button:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+input[type="text"] {
+    padding: 8px;
+    width: 300px;
+    margin-right: 10px;
+}
+
+input[type="file"] {
+    margin: 10px 0;
+}

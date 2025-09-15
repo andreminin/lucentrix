@@ -1,0 +1,25 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.0.0"
+		  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		  xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.0.0 http://maven.apache.org/xsd/assembly-2.0.0.xsd">
+	<id>reactive-crawler-assembly</id>
+	<includeBaseDirectory>false</includeBaseDirectory>
+	<formats>
+		<format>zip</format>
+	</formats>
+	<fileSets>
+        <fileSet>
+            <directory>${project.build.directory}/reactive-crawler/</directory>
+            <outputDirectory>/</outputDirectory>
+        </fileSet>
+	</fileSets>
+	<dependencySets>
+		<dependencySet>
+			<outputDirectory>${file.separator}lib</outputDirectory>
+			<useStrictFiltering>true</useStrictFiltering>
+			<useProjectArtifact>true</useProjectArtifact>
+			<excludes>
+				<exclude>org.lucentrix.metaframe:shared-assemblies</exclude>
+			</excludes>
+		</dependencySet>
+	</dependencySets>
+</assembly>

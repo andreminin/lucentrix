@@ -53,6 +53,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		 
 		<jdk.version>17</jdk.version>
+		<spring.boot.version>3.3.3</spring.boot.version>
 		<timestamp>${maven.build.timestamp}</timestamp>
 	</properties>
 
