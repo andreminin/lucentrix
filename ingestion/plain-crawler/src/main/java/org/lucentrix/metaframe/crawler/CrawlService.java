@@ -10,7 +10,6 @@ import org.pf4j.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -24,7 +23,7 @@ public class CrawlService implements Runnable {
     private final Logger logger = LoggerFactory.getLogger(CrawlService.class);
     private final Logger statLogger = LoggerFactory.getLogger("Statistics");
 
-    private final List<ShutdownEventListener> shutdownEventListeners;
+    // private final List<ShutdownEventListener> shutdownEventListeners;
     private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
     private final AtomicBoolean running = new AtomicBoolean();
@@ -38,6 +37,7 @@ public class CrawlService implements Runnable {
     private final DocumentConsumer target;
 
     public CrawlService(CrawlContext context) {
+
         this.context = context;
         this.pluginManager = new DefaultPluginManager() {
             @Override
@@ -50,15 +50,20 @@ public class CrawlService implements Runnable {
         // Load and start plugins
         //pluginManager.loadPlugins();
         // pluginManager.startPlugins();
-        this.shutdownEventListeners = new ArrayList<>();
+        // this.shutdownEventListeners = new ArrayList<>();
 
         CrawlConfig config = context.getConfig();
+
+        if (config.getSleepIntervalMsec() < 0 || config.getIdleSleepIntervalMsec() < 0) {
+            throw new IllegalArgumentException("Sleep intervals must be non-negative");
+        }
 
         long statisticsLogIntervalSec = config.getStatisticsIntervalSec();
         if (statisticsLogIntervalSec > 0 && statLogger.isInfoEnabled()) {
             this.statPrintExecutor = Executors.newScheduledThreadPool(1);
             this.statPrintExecutor.scheduleAtFixedRate(
                     () -> {
+                        if (!running.get()) return;
                         try {
                             CrawlStatistics statistics = context.getStatistics();
                             long upTime = statistics.getRunTimeMsec();
@@ -77,52 +82,44 @@ public class CrawlService implements Runnable {
             this.statPrintExecutor = null;
         }
 
-        String pluginId = StringUtils.trim(config.getSourcePluginId());
+        try {
+            String pluginId = StringUtils.trim(config.getSourcePluginId());
+
+            this.source = loadPlugin(pluginId, DocumentRetriever.class);
+
+            pluginId = StringUtils.trim(config.getTargetPluginId());
+
+            this.target = loadPlugin(pluginId, DocumentConsumer.class);
+        } catch (Exception e) {
+            if (statPrintExecutor != null) {
+                statPrintExecutor.shutdownNow();
+            }
+            throw e;
+        }
+    }
+
+    private <T> T loadPlugin(String pluginId, Class<T> type) {
+        String typeName = type.getName();
 
         if (StringUtils.isBlank(pluginId)) {
-            throw new RuntimeException("Source plugin is is blank!");
+            throw new RuntimeException(typeName + " plugin id is blank!");
         }
-
-        logger.info("Loading source plugin id={}", pluginId);
-
-
-        PluginWrapper pluginWrapper =  pluginManager.getPlugin(pluginId);
-        if(pluginWrapper == null) {
-            throw new RuntimeException("Plugin "+pluginId + " is not found");
+        PluginWrapper wrapper = pluginManager.getPlugin(pluginId);
+        if (wrapper == null) {
+            throw new RuntimeException("Plugin " + pluginId + " not found");
         }
         pluginManager.startPlugin(pluginId);
-        Plugin plugin = pluginWrapper.getPlugin();
-        if (plugin instanceof DocumentRetriever) {
-            this.source = (DocumentRetriever) plugin;
+        Plugin plugin = wrapper.getPlugin();
+        if (type.isInstance(plugin)) {
+            return type.cast(plugin);
         } else {
-            throw new RuntimeException("Source plugin id=\""+pluginId+"\" is not instance of "+DocumentRetriever.class+"!");
+            throw new RuntimeException(typeName + " plugin is not instance of " + type.getName());
         }
-
-        pluginId = StringUtils.trim(config.getTargetPluginId());
-
-        if (StringUtils.isBlank(pluginId)) {
-            throw new RuntimeException("Source plugin is is blank!");
-        }
-
-        logger.info("Loading source plugin id={}", pluginId);
-
-        pluginWrapper =  pluginManager.getPlugin(pluginId);
-        if(pluginWrapper == null) {
-            throw new RuntimeException("Plugin "+pluginId + " is not found");
-        }
-        pluginManager.startPlugin(pluginId);
-        plugin = pluginWrapper.getPlugin();
-        if (plugin instanceof DocumentConsumer) {
-            this.target = (DocumentConsumer) plugin;
-        } else {
-            throw new RuntimeException("Target plugin id=\""+pluginId+"\" is not instance of "+DocumentConsumer.class+"!");
-        }
-
     }
 
 
     @Override
-    public synchronized void run() {
+    public void run() {
         logger.info("Crawler started");
 
         running.set(true);
@@ -138,24 +135,25 @@ public class CrawlService implements Runnable {
 
                     if (source.hasNext()) {
                         DocumentPage page = source.next();
-                        noMoreDocuments = page == null || !page.hasNext();
-
-                        if (page != null && !page.isEmpty()) {
-                            List<LxEvent> events = page.getItems();
-
-                            target.push(events);
-
-                            //Save crawl point
-                            source.save();
-
-                            //TODO refactor
-                            context.getStatistics().getDocCounter().increment(events.size());
-
-                            logger.info("Generated {} events, speed: {} event/hr, Run time: {}",
-                                    context.getStatistics().getDocCounter().count(),
-                                    context.getStatistics().getDocPerHour(),
-                                    FormatUtil.toHumanReadable(context.getStatistics().getRunTimeMsec()));
+                        noMoreDocuments = (page == null) || !page.hasNext();
+                        if (page == null || page.isEmpty()) {
+                            continue;
                         }
+
+                        List<LxEvent> events = page.getItems();
+
+                        target.push(events);
+
+                        //Save crawl point
+                        source.save();
+
+                        //TODO refactor
+                        context.getStatistics().getDocCounter().increment(events.size());
+
+                        logger.info("Generated {} events, speed: {} event/hr, Run time: {}",
+                                context.getStatistics().getDocCounter().count(),
+                                context.getStatistics().getDocPerHour(),
+                                FormatUtil.toHumanReadable(context.getStatistics().getRunTimeMsec()));
                     }
 
                     if (isShutdownRequested()) {
@@ -170,11 +168,12 @@ public class CrawlService implements Runnable {
                         TimeUnit.MILLISECONDS.sleep(sleepInterval);
                     } catch (InterruptedException e) {
                         logger.warn("Sleep interrupted, stopping crawler");
-                        notifyShutdownListeners();
+                        Thread.currentThread().interrupt();
+                        //notifyShutdownListeners();
                     }
                 } catch (Exception ex) {
                     logger.error("Error in crawl service ", ex);
-                    notifyShutdownListeners();
+                    // notifyShutdownListeners();
                 }
             } while (!isShutdownRequested());
 
@@ -202,21 +201,19 @@ public class CrawlService implements Runnable {
     }
 
     public void shutdown() {
+        if (!shutdownRequested.compareAndSet(false, true)) {
+            return;
+        }
+
         try {
             pluginManager.stopPlugins();
         } catch (Exception ex) {
             logger.warn("Error stopping plugins", ex);
         }
 
-        if (isShutdownRequested()) {
-            return;
-        }
-
-        this.shutdownRequested.set(true);
-
         logger.info("Shutdown - notifying crawl service shutdown event listeners");
 
-        notifyShutdownListeners();
+        //  notifyShutdownListeners();
 
         if (running.get()) {
             int timeout = context.getConfig().getShutdownTimeoutSec() * 2;
@@ -235,13 +232,13 @@ public class CrawlService implements Runnable {
         }
     }
 
-    private void notifyShutdownListeners() {
-        for (ShutdownEventListener eventListener : shutdownEventListeners) {
-            try {
-                eventListener.shutdown();
-            } catch (Exception ex) {
-                logger.error("Error notifying shutdown event listener: " + eventListener, ex);
-            }
-        }
-    }
+    // private void notifyShutdownListeners() {
+    //    for (ShutdownEventListener eventListener : shutdownEventListeners) {
+    //        try {
+    //            eventListener.shutdown();
+    //        } catch (Exception ex) {
+    //            logger.error("Error notifying shutdown event listener: " + eventListener, ex);
+    //        }
+    //      }
+    //  }
 }

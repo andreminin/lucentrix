@@ -1,24 +1,61 @@
 package org.lucentrix.metaframe.reactive.crawler.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.lucentrix.metaframe.reactive.crawler.config.CrawlerProperties;
 import org.lucentrix.metaframe.reactive.crawler.model.PdfDocument;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
+
+@RequiredArgsConstructor
 @Slf4j
 @Service
 public class PdfProcessingService {
+
+    private final CrawlerProperties properties;
+
+    /**
+     * Download PDFs from configured seed URLs reactively.
+     */
+    public Flux<byte[]> downloadSeedPdfs() {
+        return Flux.fromIterable(properties.getSeedUrls())
+                .flatMap(this::fetchPdf)
+                .doOnNext(content -> log.info("Downloaded PDF with size: {}", content.length))
+                .doOnError(error -> log.error("Error fetching PDF", error));
+    }
+
+    private Mono<byte[]> fetchPdf(String url) {
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(properties.getRequestTimeout())
+                .build();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(properties.getRequestTimeout())
+                .build();
+
+        return Mono.fromCompletionStage(client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray()))
+                .map(HttpResponse::body)
+                .retryWhen(reactor.util.retry.Retry.backoff(3, java.time.Duration.ofSeconds(2)))
+                .doOnError(e -> log.warn("Failed to download {}: {}", url, e.getMessage()));
+    }
 
     public Mono<PdfDocument> processPdfFile(Path filePath) {
         return Mono.fromFuture(processPdfAsync(filePath))

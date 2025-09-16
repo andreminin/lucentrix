@@ -7,3 +7,39 @@ solr:
 logging:
   level:
     com.example: DEBUG
+    
+# Crawler configuration
+crawler:
+  # seed URLs to start crawl from (list)
+  seeds:
+    - "https://example.org/"
+    - "https://demo.example.org/"
+
+  # concurrency: how many fetches to do in parallel (global)
+  concurrency: 16
+
+  # per-domain concurrency to be polite
+  perDomainConcurrency: 4
+
+  # timeouts in milliseconds
+  connectTimeoutMs: 5000
+  readTimeoutMs: 15000
+
+  # retry policy
+  retry:
+    maxAttempts: 3
+    backoffMs: 250
+
+  # HTTP user-agent to send to remote servers
+  userAgent: "ReactiveCrawler/1.0"
+
+  # maximum page size to download (bytes); use to avoid huge downloads
+  maxPageSizeBytes: 5_000_000
+
+  # politeness: respect robots.txt?
+  respectRobots: true
+
+  # optionally configure which content types to accept
+  allowedContentTypes:
+    - "text/html"
+    - "application/xhtml+xml"

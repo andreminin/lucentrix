@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+
 @Slf4j
 @RestController
 @RequestMapping("/api/crawler")
@@ -44,6 +45,11 @@ public class CrawlerController {
         this.reactiveSolrService = reactiveSolrService;
     }
 
+    @GetMapping("/seed")
+    public Flux<String> crawl() {
+        return pdfProcessingService.downloadSeedPdfs()
+                .map(bytes -> "Downloaded PDF size: " + bytes.length);
+    }
 
     // Update the push endpoint
     @PutMapping(value = "/push", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
