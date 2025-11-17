@@ -1,3 +1,4 @@
+// EnhancedIndexSearcher.java - fixed Scorer creation for Lucene 9.10
 package org.apache.lucene.util;
 
 import org.apache.lucene.index.IndexReader;
@@ -59,15 +60,8 @@ public class EnhancedIndexSearcher extends IndexSearcher {
         }
 
         @Override
-        public Weight createWeight(IndexSearcher searcher, org.apache.lucene.search.ScoreMode scoreMode, float boost) {
-            // This filter does not score, it only matches documents.
-            // We use a ConstantScoreWeight to apply the boost without complex scoring logic.
+        public Weight createWeight(IndexSearcher searcher, org.apache.lucene.search.ScoreMode scoreMode, float boost) throws IOException {
             return new ConstantScoreWeight(this, boost) {
-
-                public Bits getLiveDocs(LeafReaderContext context) {
-                    // We don't track live docs explicitly here, relying on the underlying reader
-                    return context.reader().getLiveDocs();
-                }
 
                 @Override
                 public Scorer scorer(LeafReaderContext context) throws IOException {
@@ -84,7 +78,7 @@ public class EnhancedIndexSearcher extends IndexSearcher {
                         return null;
                     }
 
-                    // Wrap the iterator to handle global-to-segment translation
+                    // Handle segment translation
                     DocIdSetIterator segmentIt = new GlobalDocIdSetIterator(it, context);
 
                     // If we only filter, a null scorer is fine (handled by ConstantScoreWeight logic)
@@ -105,8 +99,8 @@ public class EnhancedIndexSearcher extends IndexSearcher {
         }
 
         @Override
-        public void visit(QueryVisitor queryVisitor) {
-
+        public void visit(QueryVisitor visitor) {
+            visitor.visitLeaf(this);
         }
 
         // Boilerplate equals/hashCode for Query
@@ -150,22 +144,22 @@ public class EnhancedIndexSearcher extends IndexSearcher {
             int globalDocId;
             do {
                 globalDocId = globalIterator.nextDoc();
-            } while (globalDocId != NO_MORE_DOCS && (globalDocId < docBase || globalDocId >= docBase + maxDocInSegment));
+            } while (globalDocId != NO_MORE_DOCS &&
+                    (globalDocId < docBase || globalDocId >= docBase + maxDocInSegment));
 
             if (globalDocId == NO_MORE_DOCS) {
                 return currentSegmentDocId = NO_MORE_DOCS;
             }
 
-            // Теперь globalDocId находится в пределах сегмента: [docBase, docBase+maxDocInSegment)
             return currentSegmentDocId = globalDocId - docBase;
         }
 
         @Override
         public int advance(int target) throws IOException {
-            // target - это сегментный docId, поэтому преобразуем в глобальный
             int globalTarget = target + docBase;
             int globalDocId = globalIterator.advance(globalTarget);
-            while (globalDocId != NO_MORE_DOCS && (globalDocId < docBase || globalDocId >= docBase + maxDocInSegment)) {
+            while (globalDocId != NO_MORE_DOCS &&
+                    (globalDocId < docBase || globalDocId >= docBase + maxDocInSegment)) {
                 globalDocId = globalIterator.nextDoc();
             }
 
@@ -186,6 +180,4 @@ public class EnhancedIndexSearcher extends IndexSearcher {
             return globalIterator.cost();
         }
     }
-
-
 }
