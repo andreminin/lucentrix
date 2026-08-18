@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucentrix ingestion</title>
+    <style>
+        body { font-family: sans-serif; margin: 2rem; color: #1a1a1a; }
+        h1 { font-size: 1.4rem; }
+        .row { display: flex; gap: 1.5rem; flex-wrap: wrap; margin: 1rem 0; }
+        .stat { min-width: 8rem; }
+        .stat span { display: block; color: #555; font-size: 0.8rem; }
+        .stat strong { font-size: 1.2rem; }
+        button { margin-right: 0.5rem; }
+        #recent { font-family: monospace; font-size: 0.85rem; }
+        .error { color: #a40000; }
+    </style>
+</head>
+<body>
+<h1>Lucentrix ingestion</h1>
+<p id="state">Loading…</p>
+<div class="row">
+    <div class="stat"><span>Job</span><strong id="jobId">-</strong></div>
+    <div class="stat"><span>Documents</span><strong id="docs">0</strong></div>
+    <div class="stat"><span>Docs / hour</span><strong id="rate">0</strong></div>
+    <div class="stat"><span>Errors</span><strong id="errors">0</strong></div>
+</div>
+<p>Source: <code id="source"></code> → sink: <code id="target"></code></p>
+<p class="error" id="lastError"></p>
+<p>
+    <button type="button" onclick="post('/api/ingest/start')">Start</button>
+    <button type="button" onclick="post('/api/ingest/stop')">Stop</button>
+</p>
+<h2>Recent document ids</h2>
+<ul id="recent"></ul>
+<script>
+    function render(s) {
+        document.getElementById('state').textContent = s.running ? 'Running' : 'Idle';
+        document.getElementById('jobId').textContent = s.jobId || '-';
+        document.getElementById('docs').textContent = s.docs ?? 0;
+        document.getElementById('rate').textContent = (s.docsPerHour || 0).toFixed(1);
+        document.getElementById('errors').textContent = s.errors ?? 0;
+        document.getElementById('source').textContent = s.sourcePlugin || '';
+        document.getElementById('target').textContent = s.targetPlugin || '';
+        document.getElementById('lastError').textContent = s.lastError || '';
+        const recent = document.getElementById('recent');
+        recent.innerHTML = '';
+        (s.recentIds || []).forEach(id => {
+            const li = document.createElement('li');
+            li.textContent = id;
+            recent.appendChild(li);
+        });
+    }
+    async function post(url) {
+        const res = await fetch(url, { method: 'POST' });
+        render(await res.json());
+    }
+    const src = new EventSource('/api/ingest/events');
+    src.addEventListener('progress', ev => render(JSON.parse(ev.data)));
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+server:
+  port: ${LUCENTRIX_UI_PORT:8095}
+
+spring:
+  application:
+    name: lucentrix-ingest
